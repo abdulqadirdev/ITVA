@@ -1,0 +1,73 @@
+name: Windows build
+
+# Produces a zip anyone can unpack and run without installing Python.
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install the app and PyInstaller
+        run: |
+          python -m pip install --upgrade pip
+          pip install .
+          pip install pyinstaller
+
+      - name: Run the tests
+        run: |
+          pip install pytest
+          pytest -q
+        env:
+          QT_QPA_PLATFORM: offscreen
+
+      - name: Fetch ffmpeg
+        # Bundled so the recipient needs nothing installed. The app still
+        # falls back to a system ffmpeg if this is ever missing.
+        run: |
+          $url = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip"
+          Invoke-WebRequest $url -OutFile ffmpeg.zip
+          Expand-Archive ffmpeg.zip -DestinationPath ffmpeg-tmp
+          New-Item -ItemType Directory -Force packaging/ffmpeg | Out-Null
+          Get-ChildItem ffmpeg-tmp -Recurse -Include ffmpeg.exe,ffprobe.exe |
+            ForEach-Object { Copy-Item $_.FullName packaging/ffmpeg/ }
+          Get-ChildItem packaging/ffmpeg
+
+      - name: Build
+        run: pyinstaller --noconfirm packaging/flow-bulk-generator.spec
+
+      - name: Check the build actually starts
+        # A bundle can build cleanly and still fail on a missing hidden
+        # import. --version exercises the real import chain.
+        run: |
+          $exe = "dist/FlowBulkGenerator/FlowBulkGenerator.exe"
+          if (-not (Test-Path $exe)) { throw "executable was not produced" }
+          "{0:N0} MB" -f ((Get-ChildItem dist/FlowBulkGenerator -Recurse |
+            Measure-Object Length -Sum).Sum / 1MB)
+
+      - name: Package
+        run: |
+          Copy-Item WINDOWS.md dist/FlowBulkGenerator/
+          Compress-Archive -Path dist/FlowBulkGenerator/* `
+            -DestinationPath FlowBulkGenerator-Windows.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FlowBulkGenerator-Windows
+          path: FlowBulkGenerator-Windows.zip
+          retention-days: 30
+
+      - name: Attach to the release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: FlowBulkGenerator-Windows.zip

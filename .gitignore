@@ -1,0 +1,20 @@
+secrets/
+output/
+*.db
+*.db-journal
+.venv/
+__pycache__/
+*.pyc
+config/settings.local.toml
+.pytest_cache/
+ui-smoke.png
+build/
+*.egg-info/
+packaging/ffmpeg/
+# Build output: a 332 MB bundle and an 86 MB .deb. Committing
+# these once makes the repository permanently large.
+dist/
+# Per-project queues, generated images, narration and video.
+# 'output/' already covers the pictures; this covers the rest
+# (project.json carries the spreadsheet id, run.log the history).
+projects/

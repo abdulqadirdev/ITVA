@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Flow Bulk Generator
+Comment=Bulk-generate images with Google Flow from a sheet of prompts
+Exec=flow-bulk-generator
+Icon=applications-graphics
+Terminal=false
+Categories=Graphics;

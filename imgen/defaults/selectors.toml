@@ -1,0 +1,84 @@
+# ImageFX DOM selectors.
+#
+# Google Labs ships UI changes without notice, so every selector lives here
+# instead of in code. Each entry is an ORDERED candidate list — the first one
+# that matches wins. When the UI changes, run:
+#
+#     python -m imgen.cli probe
+#
+# which dumps what is actually on the live page, then edit the lists below.
+# The values shipped here are starting guesses; `probe` is the source of truth.
+
+[prompt_input]
+# Flow's prompt box is a ProseMirror rich-text editor, not a textarea — which
+# is why every textarea-based guess missed. Confirmed by probe 2026-10-13.
+candidates = [
+  "div.ProseMirror[contenteditable='true']",
+  "div.ProseMirror",
+  "[contenteditable='true']",
+]
+
+[project_link]
+# On flow.google.com/ (the project list), any link into a project.
+candidates = ["a[href*='/project/']"]
+
+[new_project_button]
+candidates = [
+  "button:has-text('New project')",
+  "button[aria-label*='new project' i]",
+]
+
+[generate_button]
+# The visible label is the ligature "arrow_forward"; aria-label is the stable part.
+candidates = [
+  "button[aria-label='Start generation']",
+  "button[aria-label*='start generation' i]",
+  "button[aria-label*='generat' i]",
+]
+
+# Result tiles. Note this alone is NOT enough: the account avatar is also an
+# lh3.googleusercontent.com image. The worker additionally requires a minimum
+# natural size (flow.min_result_dimension) and ignores anything already on the
+# page before the prompt was submitted.
+[result_image]
+candidates = [
+  # Flow serves finished results from flow-content.google — a different host
+  # from the googleusercontent.com one the avatar uses. Confirmed 2026-10-13:
+  # results arrive as 1376x768 images from this origin.
+  "img[src*='flow-content.google']",
+  "img[src^='blob:']",
+  "img[src^='data:image']",
+  "img[src*='lh3.googleusercontent.com']",
+]
+# Deliberately NOT matched: https://flow.google.com/asb/... — same 1376x768
+# size, but that is the project's saved media history, not this prompt's
+# output. It lazy-loads as the panel renders, so matching it would let old
+# images drift in mid-generation and be saved as a fresh result.
+
+# Anything that means "still working". Used to avoid reading a half-rendered grid.
+[loading_indicator]
+candidates = [
+  "[role='progressbar']",
+  "[aria-busy='true']",
+  "div[class*='loading' i]",
+  "div[class*='spinner' i]",
+]
+
+# Safety / policy refusal. Classified as `blocked` — never retried.
+[blocked_message]
+candidates = [
+  "text=/can't generate|cannot generate|against.*polic|not allowed|violates/i",
+  "text=/try a different prompt/i",
+]
+
+# Daily limit reached. Classified as `quota` — stops the whole run.
+[quota_message]
+candidates = [
+  "text=/out of credits|no credits|daily limit|limit reached|try again tomorrow/i",
+  "text=/quota/i",
+]
+
+# NOTE: there is deliberately no "sign in button" selector group. A signed-in
+# Google app still renders accounts.google.com links (the account switcher), so
+# any such probe reports false negatives. Sign-in is decided from the URL — see
+# flow.signed_out_markers in settings.toml.

@@ -1,0 +1,260 @@
+# Defaults for a fresh machine. GENERATED - do not edit by hand.
+#
+# Run tools/sync_defaults.py after changing config/settings.toml; the
+# packaging test fails if these two drift apart. Personal values (the
+# spreadsheet, local file paths) are blanked on the way through.
+
+# ImageFX Bulk Generator — main settings.
+# Copy to settings.local.toml to override without touching git-tracked defaults.
+
+[chrome]
+# Leave empty to find Chrome automatically. On Linux a native google-chrome /
+# chromium binary is preferred, then the flatpak; on Windows and macOS the
+# usual install locations are searched, Edge included as a fallback.
+# Set this to a full path to force a specific browser, e.g.
+#   Windows: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
+#   macOS:   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+binary = ""
+
+# Only used when Chrome is the Linux flatpak.
+flatpak_app = "com.google.Chrome"
+
+# Leave empty to use the per-user default location. This is NEVER Chrome's own
+# profile: since Chrome 136 --remote-debugging-port is refused on the default
+# user-data-dir, on every platform.
+user_data_dir = ""
+
+# Extra Chrome flags, if you ever need them.
+extra_args = []
+
+debug_port = 9222
+launch_timeout_s = 60
+
+# Run the automation profile without extensions. Signing in makes Chrome Sync
+# pull the everyday profile's extensions into it, and some inject UI into
+# flow.google.com. Nothing is uninstalled; they are simply not loaded here.
+disable_extensions = true
+
+[flow]
+# Google folded ImageFX, Whisk and the old aitestkitchen tools into Flow:
+# labs.google/fx/tools/image-fx now 302s to flow.google.com. Verified 2026-10-13.
+app_url = "https://flow.google.com/"
+# flow.google.com/ is the project LIST; the prompt box only exists inside a
+# project. Pin one here to always generate into the same project, e.g.
+# "https://flow.google.com/project/<uuid>". Left empty, the app opens the most
+# recent existing project, and creates one only if the account has none.
+project_url = ""
+# Signed-out visitors are bounced to the marketing page. Landing on any of
+# these means the automation profile has no usable session.
+signed_out_markers = ["flow.google.com/about", "accounts.google.com"]
+
+# Early-exit hint: stop waiting the moment this many images have arrived.
+# 0 disables it, which is the default, because the real count is whatever
+# Flow's model picker is set to (x1 / x2 / x4) and that changes in the UI
+# without the app knowing. Settling is correct for every setting; the cost is
+# `settle_seconds` of waiting per job, which is nothing next to generation.
+# It is never a cap — all arriving images are saved either way.
+expected_images = 0
+min_images = 1
+# Consecutive quiet seconds with no new image before results are considered
+# complete. Flow renders its grid one image at a time and has no loading
+# indicator we can match, so too short a window collects a partial result —
+# at 3s a run saved one image of a pair.
+settle_seconds = 8
+# Ignore images smaller than this on either axis. The signed-in account avatar
+# is a 32px googleusercontent.com image and would otherwise read as a result.
+min_result_dimension = 256
+# Generation wait budget per prompt. Flow is slower than old ImageFX.
+generate_timeout_s = 300
+# NOTE: the model, aspect ratio and images-per-prompt (x1/x2/x4) are chosen in
+# Flow's own picker, not here. Flow remembers them per project, so set them
+# once in the browser. The app deliberately does not try to drive that picker:
+# an earlier version exposed these as settings that silently did nothing while
+# still recording them as if they had applied.
+
+[sheets]
+# "csv"             — read the sheet through Google's CSV export. No
+#                     credentials at all; the sheet just has to be viewable by
+#                     "anyone with the link" (or published to the web).
+#                     READ-ONLY: results go to output/manifest.csv instead of
+#                     back into the sheet.
+# "service_account" — authenticated access, and results are written back into
+#                     the sheet. Needs secrets/service_account.json.
+mode = "csv"
+
+service_account_file = ""
+spreadsheet_id = ""
+worksheet = "Sheet1"
+# Columns are matched by HEADER NAME, not by index.
+prompt_column = "image prompt"
+# Optional columns used by the {seq} and {scene} filename tokens.
+sequence_column = "sequence"
+scene_column = "scene"
+# Optional per-row overrides. A mood here reshapes the delivery; a voice
+# here overrides the project voice, which is how one video gets two speakers.
+emotion_column = "emotion"
+voice_column = "voice"
+# Which vector action a row plays instead of a still picture.
+# Leave a row blank and it keeps its generated image.
+# Known actions: idle, sleep, wake, freeze, slap, shiver, point,
+#                look-around, slump
+animation_column = "animation"
+# Describes the thumbnail picture; a column, not a row, so it never
+# becomes a clip in the video. The first filled cell wins.
+thumbnail_column = "thumbnail"
+status_column = "Status"
+paths_column = "Local Paths"
+generated_at_column = "Generated At"
+error_column = "Error"
+# Flush pending cell writes every N finished jobs (Sheets allows ~60 writes/min).
+write_batch_size = 10
+
+[run]
+output_dir = "output"
+# How generated files are named (no extension — that follows the real bytes).
+# Tokens: {row} {seq} {scene} {prompt} {index} {n} {date} {time} {project}
+# Numbers can be padded: {row:04} -> 0007. A "/" makes a subfolder, so
+# "{scene}/{seq:03}" groups a storyboard by scene.
+filename_template = "{row:04}_{prompt}_{index}"
+db_path = "state.db"
+# Default limit when nothing else is known. The GUI ignores this and defaults
+# to the whole queue; it only bounds a bare `cli run` with no --limit.
+max_per_run = 25
+# Starting a run larger than this asks for confirmation first, with the count
+# spelled out. Credits are real and a full sheet can be hundreds of images.
+confirm_above = 50
+# Stop once this many images have been generated today, across all projects —
+# credits are billed to the Google account, not to a project. 0 disables it.
+daily_image_cap = 0
+# Keep going until the queue is empty, re-running in batches. Off by default:
+# an unattended run should be something you ask for.
+run_until_empty = false
+# Rotate the per-project run.log once it passes this size.
+log_max_kb = 2048
+# Jittered pause between jobs.
+delay_min_s = 5.0
+delay_max_s = 15.0
+# Only transient failures are retried.
+max_attempts = 3
+
+[video]
+# Voice-over. "edge" sounds better but is an online service; "piper" runs
+# entirely offline from a local model. Whichever is chosen, the other is
+# tried if the first fails.
+tts_engine = "edge"
+voice = "en-US-AndrewNeural"
+# Speaking rate as a percentage offset, e.g. -10 for slower.
+rate = 0
+# Path to a piper .onnx voice model, for narration with no internet at all.
+# Without one there is no offline fallback and edge-tts is the only engine.
+# Models (a .onnx and its .onnx.json, about 60 MB) are at:
+#   https://huggingface.co/rhasspy/piper-voices
+piper_model = ""
+
+# Each clip lasts as long as its narration, plus this much breathing room.
+padding_s = 0.35
+# Used only for rows with no narration.
+fallback_duration_s = 4.0
+
+width = 1920
+height = 1080
+fps = 30
+
+# A .srt is always written. This decides whether the text is also painted
+# into the picture, which cannot be undone afterwards.
+burn_captions = true
+caption_font = "DejaVu Sans"
+caption_size = 48
+# Clean white | Yellow subtitle | Black box | Bold shout | Soft grey
+caption_preset = "Clean white"
+caption_colour = "#FFFFFF"
+caption_outline = "#000000"
+# Colour a word turns as it is spoken, with the "highlight" animation.
+caption_highlight = "#FFD400"
+caption_box = false
+caption_outline_px = 3
+# bottom | middle | top
+caption_position = "bottom"
+caption_margin = 70
+# none | fade | pop | rise | typewriter | highlight
+caption_animation = "fade"
+
+# none     - hard cuts, fastest
+# fade     - each clip dips in and out; still joined without re-encoding
+# crossfade- true overlap; slower, re-encodes the joins
+transition = "fade"
+transition_s = 0.4
+
+# Background music. Any audio file; it is looped to fit and faded in.
+music = ""
+# How loud, relative to the narration. -20 dB sits well under a voice.
+music_db = -20.0
+# Dip the music whenever someone is speaking.
+ducking = true
+music_fade_s = 2.0
+
+# Slow zoom on each still. Without it a long sequence looks like a slideshow.
+ken_burns = true
+zoom_strength = 0.12
+
+# Also export one file per value of the scene column.
+# Turn vector animation off without emptying the sheet column.
+animate_rows = true
+
+# Staging for animated rows.
+# framing: wide | full | medium | close
+# camera:  none | push-in | pull-out | drift-left
+# backdrop: "image" uses the row's own picture behind the character,
+#           or name one of: plain, bedroom, night, cave, day, warm
+animation_framing = "full"
+animation_camera = "none"
+animation_backdrop = "image"
+
+per_scene = true
+
+crf = 20
+preset = "medium"
+# Leave empty to find ffmpeg automatically.
+ffmpeg = ""
+ffprobe = ""
+
+[thumbnail]
+# The picture comes from Flow, described by the sheet's thumbnail column.
+# These are the words laid over it. Each [[thumbnail.blocks]] is one run of
+# words with its own look, so a big shout and a small remark are separate
+# things rather than one styled string. They may overlap on purpose.
+width = 1280
+height = 720
+
+# [[thumbnail.blocks]]
+# text = "THE DEADLIEST"
+# font = "Arial Black"      # anything installed; see the dropdown in the app
+# size = 120
+# colour = "#FFFFFF"
+# outline = "#000000"
+# outline_px = 12
+# shadow = true
+# align = "centre"          # left | centre | right
+# position = "middle"       # top | middle | bottom
+# dx = 0                    # nudge from that anchor, in pixels
+# dy = 0
+# rotate = 0.0
+# uppercase = true
+# italic = false
+# weight = 900
+# tracking = -0.01          # letter spacing, em
+# line_height = 1.04
+# box = ""                  # a solid slab behind the words, "" for none
+# box_pad = 16
+# text_width = 0.86
+
+[update]
+# Where a newer build is published. "owner/name" on GitHub; empty turns
+# the whole feature off. The newest release must carry the .deb as an
+# attached file.
+repo = ""
+check_on_launch = true
+# Only needed if that repository is private. Set it here on the machine -
+# a token baked into a build belongs to anyone who has the build. The
+# environment variable FLOW_UPDATE_TOKEN works too.
+token = ""

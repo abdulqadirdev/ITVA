@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "flow-bulk-generator"
+# Read from imgen/__init__.py so there is one copy of the number.
+dynamic = ["version"]
+description = "Bulk-generate images with Google Flow from a sheet or file of prompts"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "playwright>=1.44",
+    "gspread>=6.0",
+    "google-auth>=2.29",
+    "PySide6>=6.6",
+    "tomli>=2.0; python_version < '3.11'",
+    "openpyxl>=3.1",
+    "edge-tts>=7.0",
+]
+
+[tool.setuptools.dynamic]
+version = {attr = "imgen.__version__"}
+
+[project.optional-dependencies]
+# Offline narration. Heavy (onnxruntime), so it is opt-in.
+offline-voice = ["piper-tts>=1.2"]
+dev = ["pytest>=8.0", "pyyaml>=6.0", "ruff>=0.5", "pyinstaller>=6.0"]
+
+[project.scripts]
+# Command line: doctor / launch / probe / run / status / projects
+imgen = "imgen.cli:main"
+
+[project.gui-scripts]
+# Windows uses this one so launching the app does not open a console window.
+flow-bulk-generator = "ui.app:main"
+
+[tool.setuptools]
+packages = ["imgen", "ui"]
+
+[tool.setuptools.package-data]
+imgen = ["defaults/*.toml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "slow: runs the real window in a subprocess (a few seconds each)",
+]
